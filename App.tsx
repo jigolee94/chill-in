@@ -18,7 +18,8 @@ import { distanceMeters } from './src/geo';
 import {
   isFirebaseConfigured,
   saveMemberStatusToFirestore,
-  signInMemberAnonymously
+  signInMemberAnonymously,
+  subscribeToArrivalNotifications
 } from './src/services/firebase';
 import {
   getLocalStatus,
@@ -67,6 +68,13 @@ export default function App() {
     return CHILLING_PLACES.find((p) => p.id === status.placeId) || null;
   }, [status]);
 
+  const sendLocalNotification = useCallback(async (title: string, body: string) => {
+    await Notifications.scheduleNotificationAsync({
+      content: { title, body },
+      trigger: null
+    });
+  }, []);
+
   useEffect(() => {
     (async () => {
       const savedNickname = await getNickname();
@@ -91,6 +99,17 @@ export default function App() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!USE_FIREBASE || userId === LOCAL_USER_ID) return undefined;
+
+    return subscribeToArrivalNotifications(userId, (arrival) => {
+      sendLocalNotification(
+        "Chill in' 친구 도착",
+        `${arrival.nickname || '친구'}님이 ${arrival.placeName || '칠링 지점'} 근처에 도착했어요.`
+      ).catch(console.error);
+    });
+  }, [sendLocalNotification, userId]);
+
   const publishStatus = useCallback(async (next: MemberStatus) => {
     setStatus(next);
     await saveLocalStatus(next);
@@ -99,13 +118,6 @@ export default function App() {
       await saveMemberStatusToFirestore(next);
     }
   }, []);
-
-  const sendLocalNotification = async (title: string, body: string) => {
-    await Notifications.scheduleNotificationAsync({
-      content: { title, body },
-      trigger: null
-    });
-  };
 
   const markArrived = useCallback(
     async (placeId: string, placeName: string) => {
@@ -124,7 +136,7 @@ export default function App() {
       await publishStatus(next);
       await sendLocalNotification("Chill in' 도착", `${nickname}님이 ${placeName} 근처에 도착했어요.`);
     },
-    [nickname, publishStatus, status, userId]
+    [nickname, publishStatus, sendLocalNotification, status, userId]
   );
 
   const markAway = useCallback(
@@ -144,7 +156,7 @@ export default function App() {
       await publishStatus(next);
       await sendLocalNotification('칠링 퇴장', `${nickname}님이 칠링 지점 근처를 벗어났어요.`);
     },
-    [nickname, publishStatus, status, userId]
+    [nickname, publishStatus, sendLocalNotification, status, userId]
   );
 
   const evaluateLocation = useCallback(

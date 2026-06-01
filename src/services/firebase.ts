@@ -6,7 +6,19 @@ import {
   type Auth,
   type User
 } from 'firebase/auth';
-import { doc, getFirestore, serverTimestamp, setDoc, type Firestore } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getFirestore,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+  type Firestore,
+  type Unsubscribe
+} from 'firebase/firestore';
 import { generatedFirebaseConfig } from '../generated/firebaseConfig';
 import type { MemberStatus } from '../storage';
 
@@ -36,6 +48,17 @@ export const firebaseApp: FirebaseApp | null = isFirebaseConfigured
 
 export const db: Firestore | null = firebaseApp ? getFirestore(firebaseApp) : null;
 export const auth: Auth | null = firebaseApp ? getAuth(firebaseApp) : null;
+
+export type ArrivalEvent = {
+  userId: string;
+  nickname: string;
+  placeId: string;
+  placeName: string;
+  status: 'arrived' | 'away';
+  arrivedAt: string | null;
+  leftAt: string | null;
+  createdAt: string;
+};
 
 export async function signInMemberAnonymously(nickname: string): Promise<User | null> {
   if (!auth || !db) return null;
@@ -107,4 +130,33 @@ export async function saveMemberStatusToFirestore(status: MemberStatus) {
       { merge: true }
     );
   }
+}
+
+export function subscribeToArrivalNotifications(
+  currentUserId: string,
+  onArrival: (arrival: ArrivalEvent) => void
+): Unsubscribe {
+  if (!db) return () => {};
+
+  const startedAt = new Date().toISOString();
+  const arrivalsQuery = query(
+    collection(db, 'arrivals'),
+    where('createdAt', '>', startedAt),
+    orderBy('createdAt', 'asc')
+  );
+
+  return onSnapshot(
+    arrivalsQuery,
+    (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type !== 'added') return;
+        const arrival = change.doc.data() as ArrivalEvent;
+        if (arrival.status !== 'arrived' || arrival.userId === currentUserId) return;
+        onArrival(arrival);
+      });
+    },
+    (error) => {
+      console.error('Arrival notification listener failed', error);
+    }
+  );
 }
