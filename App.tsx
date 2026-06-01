@@ -122,7 +122,7 @@ export default function App() {
         lastUpdatedAt: now
       };
       await publishStatus(next);
-      await sendLocalNotification('칠링 도착', `${nickname}님이 ${placeName} 근처에 도착했어요.`);
+      await sendLocalNotification("Chill in' 도착", `${nickname}님이 ${placeName} 근처에 도착했어요.`);
     },
     [nickname, publishStatus, status, userId]
   );
@@ -292,6 +292,7 @@ export default function App() {
           {CHILLING_PLACES.map((place) => (
             <View key={place.id} style={styles.placeItem}>
               <Text style={styles.placeName}>{place.name}</Text>
+              <Text style={styles.mutedSmall}>{place.address}</Text>
               <Text style={styles.mutedSmall}>도착 판정 {place.radiusMeters}m / 퇴장 판정 {place.exitRadiusMeters}m</Text>
             </View>
           ))}
