@@ -1,0 +1,85 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.uid == "admin"
+        && request.auth.token.admin == true;
+    }
+
+    function hasDeviceId() {
+      return isAdmin()
+        && request.auth.token.deviceId is string
+        && request.auth.token.deviceId.size() > 0;
+    }
+
+    function syncLockPath(storeId) {
+      return /databases/$(database)/documents/stores/$(storeId)/syncLock/master;
+    }
+
+    function isSyncMaster(storeId) {
+      return hasDeviceId()
+        && exists(syncLockPath(storeId))
+        && get(syncLockPath(storeId)).data.deviceId == request.auth.token.deviceId
+        && get(syncLockPath(storeId)).data.leaseExpiresAt > request.time;
+    }
+
+    match /stores/{storeId} {
+      allow read: if isAdmin();
+      allow create, update: if isSyncMaster(storeId);
+      allow delete: if false;
+
+      match /syncLock/master {
+        allow read: if isAdmin();
+        allow create, update: if hasDeviceId()
+          && request.resource.data.deviceId == request.auth.token.deviceId
+          && request.resource.data.storeId == storeId;
+        allow delete: if false;
+      }
+
+      match /tables/{tableId} {
+        allow read: if isAdmin();
+        allow create, update, delete: if isSyncMaster(storeId);
+      }
+
+      match /timers/{timerId} {
+        allow read: if isAdmin();
+        allow create, update, delete: if isSyncMaster(storeId);
+      }
+
+      match /{document=**} {
+        allow read: if isAdmin();
+        allow write: if false;
+      }
+    }
+
+    match /members/{memberId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && memberId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /places/{placeId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /arrivals/{arrivalId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
