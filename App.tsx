@@ -13,10 +13,9 @@ import {
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { CHILLING_PLACES } from './src/places';
 import { distanceMeters } from './src/geo';
-import { db } from './src/firebase';
+import { isFirebaseConfigured, saveMemberStatusToFirestore } from './src/services/firebase';
 import {
   getLocalStatus,
   getNickname,
@@ -27,7 +26,7 @@ import {
   setNickname
 } from './src/storage';
 
-const USE_FIREBASE = false; // Firebase 설정 후 true로 바꾸세요.
+const USE_FIREBASE = false; // TODO: Firebase 값 준비 후 true로 바꾸고 실제 기기에서 권한 흐름을 재검증하세요.
 const USER_ID = 'local-user-001'; // 실제 서비스에서는 로그인 uid로 교체.
 const ARRIVAL_STAY_SECONDS = 90;
 const EXIT_STAY_SECONDS = 600;
@@ -76,15 +75,8 @@ export default function App() {
     setStatus(next);
     await saveLocalStatus(next);
 
-    if (USE_FIREBASE) {
-      await setDoc(
-        doc(db, 'memberStatuses', next.userId),
-        {
-          ...next,
-          serverUpdatedAt: serverTimestamp()
-        },
-        { merge: true }
-      );
+    if (USE_FIREBASE && isFirebaseConfigured) {
+      await saveMemberStatusToFirestore(next);
     }
   }, []);
 
