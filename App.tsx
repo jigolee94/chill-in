@@ -21,6 +21,7 @@ import {
   signInMemberAnonymously,
   subscribeToArrivalNotifications
 } from './src/services/firebase';
+import { registerForRemotePushNotifications } from './src/services/push';
 import {
   getLocalStatus,
   getNickname,
@@ -89,6 +90,7 @@ export default function App() {
           if (user) {
             setUserId(user.uid);
             setLoginText(`Firebase 로그인됨 · ${user.displayName || savedNickname}`);
+            registerForRemotePushNotifications(user.uid).catch(console.error);
           }
         } catch (error) {
           console.error(error);
@@ -241,6 +243,7 @@ export default function App() {
       if (user) {
         setUserId(user.uid);
         setLoginText(`Firebase 로그인됨 · ${cleanNickname}`);
+        registerForRemotePushNotifications(user.uid).catch(console.error);
       }
     }
     Alert.alert('저장 완료', '닉네임이 저장됐어요.');

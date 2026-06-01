@@ -64,6 +64,15 @@ service cloud.firestore {
         && memberId == request.auth.uid
         && request.resource.data.userId == request.auth.uid;
       allow delete: if false;
+
+      match /pushTokens/{tokenId} {
+        allow read, delete: if isSignedIn()
+          && memberId == request.auth.uid;
+        allow create, update: if isSignedIn()
+          && memberId == request.auth.uid
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.token is string;
+      }
     }
 
     match /places/{placeId} {
