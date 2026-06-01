@@ -15,7 +15,11 @@ import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { CHILLING_PLACES } from './src/places';
 import { distanceMeters } from './src/geo';
-import { isFirebaseConfigured, saveMemberStatusToFirestore } from './src/services/firebase';
+import {
+  isFirebaseConfigured,
+  saveMemberStatusToFirestore,
+  signInMemberAnonymously
+} from './src/services/firebase';
 import {
   getLocalStatus,
   getNickname,
@@ -26,8 +30,8 @@ import {
   setNickname
 } from './src/storage';
 
-const USE_FIREBASE = false; // TODO: Firebase 값 준비 후 true로 바꾸고 실제 기기에서 권한 흐름을 재검증하세요.
-const USER_ID = 'local-user-001'; // 실제 서비스에서는 로그인 uid로 교체.
+const USE_FIREBASE = isFirebaseConfigured;
+const LOCAL_USER_ID = 'local-user-001';
 const ARRIVAL_STAY_SECONDS = 90;
 const EXIT_STAY_SECONDS = 600;
 
@@ -49,6 +53,8 @@ Notifications.setNotificationHandler({
 
 export default function App() {
   const [nickname, setNicknameState] = useState('지고');
+  const [userId, setUserId] = useState(LOCAL_USER_ID);
+  const [loginText, setLoginText] = useState(USE_FIREBASE ? 'Firebase 로그인 준비 중' : '로컬 목업 모드');
   const [sharingOn, setSharingOn] = useState(true);
   const [status, setStatus] = useState<MemberStatus | null>(null);
   const [permissionText, setPermissionText] = useState('권한 확인 전');
@@ -63,10 +69,24 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      setNicknameState(await getNickname());
+      const savedNickname = await getNickname();
+      setNicknameState(savedNickname);
       setSharingOn(await isLocationSharingOn());
       const savedStatus = await getLocalStatus();
       if (savedStatus) setStatus(savedStatus);
+      // TODO: 친구 테스트 이후 익명 로그인 대신 전화번호/카카오 로그인 전환을 검토하세요.
+      if (USE_FIREBASE) {
+        try {
+          const user = await signInMemberAnonymously(savedNickname);
+          if (user) {
+            setUserId(user.uid);
+            setLoginText(`Firebase 로그인됨 · ${user.displayName || savedNickname}`);
+          }
+        } catch (error) {
+          console.error(error);
+          setLoginText('Firebase 로그인 실패 · 로컬 저장 유지');
+        }
+      }
       await Notifications.requestPermissionsAsync();
     })();
   }, []);
@@ -92,7 +112,7 @@ export default function App() {
       if (status?.status === 'arrived' && status.placeId === placeId) return;
       const now = new Date().toISOString();
       const next: MemberStatus = {
-        userId: USER_ID,
+        userId,
         nickname,
         placeId,
         placeName,
@@ -104,7 +124,7 @@ export default function App() {
       await publishStatus(next);
       await sendLocalNotification('칠링 도착', `${nickname}님이 ${placeName} 근처에 도착했어요.`);
     },
-    [nickname, publishStatus, status]
+    [nickname, publishStatus, status, userId]
   );
 
   const markAway = useCallback(
@@ -112,7 +132,7 @@ export default function App() {
       if (status?.status !== 'arrived') return;
       const now = new Date().toISOString();
       const next: MemberStatus = {
-        userId: USER_ID,
+        userId,
         nickname,
         placeId: null,
         placeName: null,
@@ -124,7 +144,7 @@ export default function App() {
       await publishStatus(next);
       await sendLocalNotification('칠링 퇴장', `${nickname}님이 칠링 지점 근처를 벗어났어요.`);
     },
-    [nickname, publishStatus, status]
+    [nickname, publishStatus, status, userId]
   );
 
   const evaluateLocation = useCallback(
@@ -201,7 +221,16 @@ export default function App() {
   }, [evaluateLocation, sharingOn]);
 
   const saveName = async () => {
-    await setNickname(nickname);
+    const cleanNickname = nickname.trim() || '친구';
+    setNicknameState(cleanNickname);
+    await setNickname(cleanNickname);
+    if (USE_FIREBASE) {
+      const user = await signInMemberAnonymously(cleanNickname);
+      if (user) {
+        setUserId(user.uid);
+        setLoginText(`Firebase 로그인됨 · ${cleanNickname}`);
+      }
+    }
     Alert.alert('저장 완료', '닉네임이 저장됐어요.');
   };
 
@@ -221,7 +250,7 @@ export default function App() {
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.logo}>CHILLING</Text>
+          <Text style={styles.logo}>Chill in'</Text>
           <Text style={styles.title}>Crew Check-in</Text>
           <Text style={styles.subtitle}>지점 근처 도착 여부만 공유하는 핵심 멤버용 앱</Text>
         </View>
@@ -243,6 +272,7 @@ export default function App() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>닉네임</Text>
           <TextInput value={nickname} onChangeText={setNicknameState} placeholder="닉네임" placeholderTextColor="#777" style={styles.input} />
+          <Text style={styles.mutedSmall}>{loginText}</Text>
           <Pressable style={styles.secondaryButton} onPress={saveName}>
             <Text style={styles.lightButtonText}>닉네임 저장</Text>
           </Pressable>

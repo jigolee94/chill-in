@@ -1,4 +1,11 @@
 import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
+import {
+  getAuth,
+  signInAnonymously,
+  updateProfile,
+  type Auth,
+  type User
+} from 'firebase/auth';
 import { doc, getFirestore, serverTimestamp, setDoc, type Firestore } from 'firebase/firestore';
 import type { MemberStatus } from '../storage';
 
@@ -27,6 +34,38 @@ export const firebaseApp: FirebaseApp | null = isFirebaseConfigured
   : null;
 
 export const db: Firestore | null = firebaseApp ? getFirestore(firebaseApp) : null;
+export const auth: Auth | null = firebaseApp ? getAuth(firebaseApp) : null;
+
+export async function signInMemberAnonymously(nickname: string): Promise<User | null> {
+  if (!auth || !db) return null;
+
+  const credential = auth.currentUser
+    ? { user: auth.currentUser }
+    : await signInAnonymously(auth);
+  const cleanNickname = nickname.trim() || '친구';
+
+  if (credential.user.displayName !== cleanNickname) {
+    await updateProfile(credential.user, { displayName: cleanNickname });
+  }
+
+  await saveMemberProfileToFirestore(credential.user.uid, cleanNickname);
+  return credential.user;
+}
+
+export async function saveMemberProfileToFirestore(userId: string, nickname: string) {
+  if (!db) return;
+
+  await setDoc(
+    doc(db, 'members', userId),
+    {
+      userId,
+      nickname: nickname.trim() || '친구',
+      loginProvider: 'anonymous',
+      lastSeenAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+}
 
 export async function saveMemberStatusToFirestore(status: MemberStatus) {
   if (!db) return;
@@ -39,6 +78,7 @@ export async function saveMemberStatusToFirestore(status: MemberStatus) {
       currentPlaceId: status.placeId,
       currentPlaceName: status.placeName,
       status: status.status,
+      loginProvider: 'anonymous',
       arrivedAt: status.arrivedAt,
       leftAt: status.leftAt,
       lastUpdatedAt: status.lastUpdatedAt,
