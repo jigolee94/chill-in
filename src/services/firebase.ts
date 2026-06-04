@@ -60,8 +60,6 @@ export type ArrivalEvent = {
   createdAt: string;
 };
 
-export type PushPlatform = 'ios' | 'android';
-
 export async function signInMemberAnonymously(nickname: string): Promise<User | null> {
   if (!auth || !db) return null;
 
@@ -88,54 +86,6 @@ export async function saveMemberProfileToFirestore(userId: string, nickname: str
       nickname: nickname.trim() || '친구',
       loginProvider: 'anonymous',
       lastSeenAt: serverTimestamp()
-    },
-    { merge: true }
-  );
-}
-
-export async function saveMemberPushTokenToFirestore(
-  userId: string,
-  token: string,
-  platform: PushPlatform
-) {
-  if (!db) return;
-
-  const tokenId = encodeURIComponent(token);
-
-  await setDoc(
-    doc(db, 'members', userId, 'pushTokens', tokenId),
-    {
-      userId,
-      token,
-      platform,
-      enabled: true,
-      app: 'chill-in',
-      updatedAt: serverTimestamp()
-    },
-    { merge: true }
-  );
-
-  await setDoc(
-    doc(db, 'members', userId),
-    {
-      userId,
-      hasPushToken: true,
-      pushTokenUpdatedAt: serverTimestamp()
-    },
-    { merge: true }
-  );
-}
-
-export async function disableMemberPushTokenInFirestore(userId: string, token: string) {
-  if (!db) return;
-
-  await setDoc(
-    doc(db, 'members', userId, 'pushTokens', encodeURIComponent(token)),
-    {
-      userId,
-      token,
-      enabled: false,
-      updatedAt: serverTimestamp()
     },
     { merge: true }
   );

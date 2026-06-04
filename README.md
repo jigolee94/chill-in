@@ -13,8 +13,6 @@ Zenly처럼 실시간 이동 경로를 계속 보여주는 앱이 아니라, 지
 - 로컬 푸시 알림
 - Firebase Firestore 연동
 - 칠링 11개 지점 좌표 포함
-- Expo Push Token 저장
-- Cloud Function 기반 친구 도착 원격 푸시 발송
 
 ## 도착/퇴장 판정 방식
 
@@ -25,8 +23,7 @@ GPS는 건물 안이나 지하에서 20~100m 정도 튈 수 있어서 내부 로
 - 사용자가 `위치 감지 시작`을 누르고 위치/알림 권한을 허용해야 도착 알림이 동작합니다.
 - 도착이 확정되면 해당 지점 이름으로 로컬 알림을 보냅니다.
 - 앱을 열고 있는 친구는 Firestore `arrivals` 새 기록을 감지해 친구 도착 로컬 알림도 받습니다.
-- iOS/Android 앱에서 Expo Push Token이 저장된 친구는 앱이 꺼져 있어도 Cloud Function을 통해 친구 도착 원격 푸시를 받을 수 있습니다.
-- Vercel 웹 링크만 쓰는 사용자는 브라우저가 완전히 닫혀 있을 때 Expo 원격 푸시를 받을 수 없습니다.
+- 앱이 완전히 꺼진 상태에서도 받는 원격 푸시는 Expo Push Token과 Cloud Function 같은 서버 발송 구조가 필요합니다.
 
 ## 실행 방법
 
@@ -88,17 +85,9 @@ Firebase를 나중에 연결하려면:
 .env.example
 scripts/write-firebase-config.js
 src/services/firebase.ts
-src/services/push.ts
-functions/index.js
 ```
 
 `scripts/write-firebase-config.js`는 빌드 직전에 `EXPO_PUBLIC_FIREBASE_*` 값을 읽어서 git에 커밋되지 않는 `src/generated/firebaseConfig.ts`를 만듭니다. `src/services/firebase.ts`는 이 generated config가 모두 채워진 경우에만 Firebase를 초기화합니다. 값이 비어 있으면 `db`와 `auth`는 `null`이고, 앱은 기존 로컬 저장 목업을 계속 사용합니다.
-
-Cloud Function 배포는 Firebase Blaze 요금제가 필요합니다. 프로젝트를 Blaze로 올린 뒤 아래 명령으로 친구 도착 원격 푸시 함수를 배포합니다.
-
-```bash
-firebase deploy --only functions:notifyArrivalCreated --project chilling-admin-overview
-```
 
 ### 로그인 방식
 
@@ -108,9 +97,7 @@ firebase deploy --only functions:notifyArrivalCreated --project chilling-admin-o
 - Firebase가 익명 uid 생성
 - 사용자가 닉네임 저장
 - `members/{uid}`에 닉네임과 마지막 접속 기록 저장
-- iOS/Android 앱에서는 `members/{uid}/pushTokens/{tokenId}`에 Expo Push Token 저장
 - 도착/퇴장 시 같은 uid로 `members`, `arrivals` 업데이트
-- Cloud Function이 새 `arrivals` 도착 이벤트를 감지해 다른 멤버들의 Expo Push Token으로 원격 푸시 발송
 
 추천 운영 방향:
 
@@ -180,31 +167,15 @@ firebase deploy --only functions:notifyArrivalCreated --project chilling-admin-o
 }
 ```
 
-#### `members/{memberId}/pushTokens/{tokenId}`
-
-iOS/Android 앱이 닫혀 있어도 친구 도착 푸시를 받을 수 있게 Expo Push Token을 저장하는 문서입니다. 토큰은 본인만 읽고 쓸 수 있고, Cloud Function은 Admin SDK로 읽습니다.
-
-```json
-{
-  "userId": "member_001",
-  "token": "ExpoPushToken[...]",
-  "platform": "ios",
-  "enabled": true,
-  "app": "chill-in",
-  "updatedAt": "Firestore serverTimestamp"
-}
-```
-
 TODO:
 
 - Firebase 프로젝트 생성 후 `.env`와 Vercel 환경변수에 실제 config 입력
 - Firebase Authentication에서 Anonymous 로그인 활성화
-- iOS/Android 원격 푸시를 쓰려면 EAS 프로젝트를 연결하고 `app.json`의 `extra.eas.projectId`가 설정되어 있는지 확인
 - 친구 테스트 이후 전화번호/카카오 로그인 중 하나로 전환 검토
 - `places` 컬렉션에서 지점 목록을 읽도록 `src/places.ts` 대체
 - Firestore 보안 규칙에서 승인된 멤버만 읽고 쓸 수 있게 제한
 - 도착 기록 자동 삭제 정책 또는 보관 기간 설정
-- Expo Push Token이 오래되었거나 해제된 경우 자동 정리 정책 추가
+- 앱 종료 상태에서도 친구 도착 알림을 보내려면 Expo Push Token 저장과 Cloud Function 발송 추가
 
 ### Firestore 보안 규칙
 
@@ -212,7 +183,6 @@ TODO:
 
 - 로그인한 사용자는 `members`, `places`, `arrivals`를 읽을 수 있음
 - 사용자는 자기 uid와 같은 `members/{uid}`만 쓸 수 있음
-- 사용자는 자기 uid 아래 `pushTokens`만 읽고 쓸 수 있음
 - 사용자는 `arrivals`에 자기 uid로 된 이벤트만 쓸 수 있음
 - `places` 쓰기는 관리자만 가능
 
