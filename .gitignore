@@ -2,10 +2,8 @@ node_modules/
 .expo/
 dist/
 build/
-src/generated/firebaseConfig.ts
 *.log
 .env
 .env.local
 .env.*.local
 .DS_Store
-.vercel

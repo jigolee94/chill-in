@@ -81,11 +81,10 @@ Firebase를 나중에 연결하려면:
 
 ```text
 .env.example
-scripts/write-firebase-config.js
 src/services/firebase.ts
 ```
 
-`scripts/write-firebase-config.js`는 빌드 직전에 `EXPO_PUBLIC_FIREBASE_*` 값을 읽어서 git에 커밋되지 않는 `src/generated/firebaseConfig.ts`를 만듭니다. `src/services/firebase.ts`는 이 generated config가 모두 채워진 경우에만 Firebase를 초기화합니다. 값이 비어 있으면 `db`와 `auth`는 `null`이고, 앱은 기존 로컬 저장 목업을 계속 사용합니다.
+`src/services/firebase.ts`는 모든 `EXPO_PUBLIC_FIREBASE_*` 값이 채워진 경우에만 Firebase를 초기화합니다. 값이 비어 있으면 `db`와 `auth`는 `null`이고, 앱은 기존 로컬 저장 목업을 계속 사용합니다.
 
 ### 로그인 방식
 
@@ -172,15 +171,6 @@ TODO:
 - `places` 컬렉션에서 지점 목록을 읽도록 `src/places.ts` 대체
 - Firestore 보안 규칙에서 승인된 멤버만 읽고 쓸 수 있게 제한
 - 도착 기록 자동 삭제 정책 또는 보관 기간 설정
-
-### Firestore 보안 규칙
-
-`firestore.rules`는 기존 `chilling-hookah-timer`/관리자 앱의 `stores` 규칙을 유지하면서, `Chill in'`용 컬렉션만 추가합니다.
-
-- 로그인한 사용자는 `members`, `places`, `arrivals`를 읽을 수 있음
-- 사용자는 자기 uid와 같은 `members/{uid}`만 쓸 수 있음
-- 사용자는 `arrivals`에 자기 uid로 된 이벤트만 쓸 수 있음
-- `places` 쓰기는 관리자만 가능
 
 ## 다음에 붙이면 좋은 기능
 
