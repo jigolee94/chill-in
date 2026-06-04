@@ -263,7 +263,8 @@ export default function App() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.logo}>Chill in'</Text>
-          <Text style={styles.title}>칠링 도착 시 멤버간 위치 공유</Text>
+          <Text style={styles.title}>Crew Check-in</Text>
+          <Text style={styles.subtitle}>지점 근처 도착 여부만 공유하는 핵심 멤버용 앱</Text>
         </View>
 
         <View style={styles.card}>
@@ -327,6 +328,7 @@ const styles = StyleSheet.create({
   header: { paddingTop: 16, paddingBottom: 10 },
   logo: { color: '#fff', fontSize: 30, fontWeight: '900', letterSpacing: 2 },
   title: { color: '#fff', fontSize: 22, fontWeight: '700', marginTop: 4 },
+  subtitle: { color: '#aaa', fontSize: 14, marginTop: 8 },
   card: { backgroundColor: '#1d1d1d', borderRadius: 18, padding: 18, borderWidth: 1, borderColor: '#2c2c2c' },
   cardRow: {
     backgroundColor: '#1d1d1d',
