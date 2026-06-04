@@ -11,17 +11,16 @@ Zenly처럼 실시간 이동 경로를 계속 보여주는 앱이 아니라, 지
 - 도착 상태 저장
 - 퇴장 상태 저장
 - 로컬 푸시 알림
-- Firebase Firestore 연동
-- 칠링 11개 지점 좌표 포함
+- Firebase Firestore 연동 자리 포함
+- 칠링 성수점 / 압구정점 샘플 좌표 포함
 
 ## 도착/퇴장 판정 방식
 
 GPS는 건물 안이나 지하에서 20~100m 정도 튈 수 있어서 내부 로직은 여유 있게 잡았습니다.
 
-- 도착 판정: 지점 중심 기준 100m 안에 90초 이상 머무르면 도착
-- 퇴장 판정: 현재 도착 지점 기준 140m 밖에 10분 이상 있으면 퇴장
-- 사용자가 `위치 감지 시작`을 누르고 위치/알림 권한을 허용해야 도착 알림이 동작합니다.
-- 도착이 확정되면 해당 지점 이름으로 로컬 알림을 보냅니다.
+- 도착 판정: 지점 중심 기준 70m 안에 90초 이상 머무르면 도착
+- 퇴장 판정: 현재 도착 지점 기준 110m 밖에 10분 이상 있으면 퇴장
+- 앱 문구는 “50m 근처 도착”처럼 표현해도 되지만, 실제 로직은 조금 여유 있는 값이 안정적입니다.
 
 ## 실행 방법
 
@@ -38,23 +37,24 @@ npm run android
 npm run ios
 ```
 
-## 등록 지점
+## 지점 좌표 바꾸기
 
-`src/places.ts`에 아래 11개 지점이 등록되어 있습니다.
+`src/places.ts` 파일에서 실제 칠링 지점 좌표로 바꾸면 됩니다.
 
-- 칠링 한남
-- 칠링 연남
-- 칠링 마곡
-- 칠링 신사
-- 칠링 방배
-- 칠링 성수
-- 칠링 을지로
-- 칠링 압구정로데오
-- 칠링 운니
-- 칠링 잠실
-- 칠링 여의도
+```ts
+export const CHILLING_PLACES = [
+  {
+    id: 'seongsu',
+    name: '칠링 성수점',
+    latitude: 37.5446,
+    longitude: 127.0558,
+    radiusMeters: 70,
+    exitRadiusMeters: 110
+  }
+];
+```
 
-좌표를 바꾸려면 `src/places.ts`의 `latitude`, `longitude`, `radiusMeters` 값을 수정하면 됩니다. `exitRadiusMeters`는 도착 반경보다 40m 크게 자동 계산됩니다.
+Google Maps나 Kakao Map에서 지점을 찍은 뒤 위도/경도를 복사하면 됩니다.
 
 ## Firebase 연결 방법
 
@@ -117,7 +117,7 @@ src/services/firebase.ts
   "userId": "member_001",
   "nickname": "지고",
   "currentPlaceId": "seongsu",
-  "currentPlaceName": "칠링 성수",
+  "currentPlaceName": "칠링 성수점",
   "status": "arrived",
   "loginProvider": "anonymous",
   "lastSeenAt": "Firestore serverTimestamp",
@@ -135,12 +135,11 @@ src/services/firebase.ts
 ```json
 {
   "placeId": "seongsu",
-  "name": "칠링 성수",
-  "address": "서울특별시 성동구 왕십리로14길 19-2, 2층",
-  "latitude": 37.540382,
-  "longitude": 127.06262,
-  "radiusMeters": 100,
-  "exitRadiusMeters": 140,
+  "name": "칠링 성수점",
+  "latitude": 37.5446,
+  "longitude": 127.0558,
+  "radiusMeters": 70,
+  "exitRadiusMeters": 110,
   "isActive": true,
   "updatedAt": "Firestore serverTimestamp"
 }
@@ -156,7 +155,7 @@ src/services/firebase.ts
   "userId": "member_001",
   "nickname": "지고",
   "placeId": "seongsu",
-  "placeName": "칠링 성수",
+  "placeName": "칠링 성수점",
   "status": "arrived",
   "arrivedAt": "2026-05-29T...",
   "leftAt": null,
